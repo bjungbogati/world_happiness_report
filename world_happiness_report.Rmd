@@ -1,0 +1,255 @@
+---
+title: "World Happiness Report"
+author: "Binod Jung Bogati"
+date: "7/22/2018"
+output: 
+  html_document:
+    keep_md: yes
+    theme: readable
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load data from World Happiness Report 
+
+```{r}
+# load required library
+library(tidyverse)
+
+y17 <- read.csv("./data/2017.csv", stringsAsFactors = FALSE)
+```
+
+```{r}
+head(y17)
+```
+
+# Rename column names
+
+```{r}
+names(y17) <- c("country", "rank", "score", "whisker_high", "whisker_low", "gdp", "family", "life_expectancy", "freedom", "generosity", "corruption", "dystopia")
+```
+
+# Top 10 happiest country
+
+```{r}
+top10_happy <- head(y17, 10)
+```
+
+```{r, fig.width=9, fig.height=5}
+top10_happy$country <- factor(top10_happy$country, levels = top10_happy$country[order(-top10_happy$score)])
+
+ggplot(top10_happy, aes(x = country, y = score, fill = country)) +
+  geom_bar(stat = "identity", aes(width = 0.4)) +
+  labs(title = "Top 10 World's Happiest Countries") +
+  geom_text(aes(label = round(score, 2)), position = position_stack(vjust = 0.5), size = 3)
+```
+
+# Least Happy Countries
+
+```{r, fig.width=9, fig.height=5}
+least10_happy <- tail(y17, 10)
+
+least10_happy$country <- factor(least10_happy$country, levels = least10_happy$country[order(least10_happy$score)])
+  
+ggplot(least10_happy, aes(x = country, y = score, fill = country)) +
+  geom_bar(stat = "identity", aes(width = 0.4)) +
+  labs(title = "Top 10 World's Least Happiest Countries") +
+  geom_text(aes(label = round(score, 2)), position = position_stack(vjust = 0.5), size = 3)
+  
+```
+
+# Add the region in the dataframe
+
+```{r}
+y16 <- read.csv("./data/2016.csv", stringsAsFactors = FALSE)
+
+y16_select <- y16 %>% 
+  select(Country, Region)
+
+names(y16_select) <- c("country", "region") 
+
+y17_full <- right_join(y16_select, y17, by = "country")
+
+# check if country has no region
+which(is.na(y17_full),arr.ind=TRUE)
+
+y17_full %>% 
+  filter(is.na(region))
+
+y17_full$region[c(33, 71, 113, 139, 155)] <- c("Eastern Asia","Eastern Asia", "Sub-Saharan Africa", "Sub-Saharan Africa", "Sub-Saharan Africa")
+```
+
+# Summary statistics
+
+```{r}
+y17_full %>% 
+  group_by(region) %>% 
+  select(region, rank, score, gdp, life_expectancy, corruption) %>% 
+  summarise(rank = mean(rank), score = mean(score), gdp = mean(gdp), life_expectancy = mean(life_expectancy), corruption = mean(corruption)) %>% 
+  arrange(rank)
+
+y17_full
+
+```
+
+# Top 50 countries count by region
+
+```{r}
+top_50 <- head(y17_full, 50)
+
+# unique(top_50$region)
+# count <- top_50 %>% 
+#   group_by(region) %>%
+#   count(region)
+
+count <- count(top_50, region)
+
+count$region <- factor(count$region, levels = count$region[order(-count$n)])
+
+ggplot(count, aes(x = region, y = n, fill = region)) +
+  geom_bar(stat = "identity", width = 0.5) +
+  guides(fill=FALSE) +
+  geom_text(aes(label = n), position = position_stack(vjust = 0.5), size = 4) +
+  labs(title = "Top 50 countries count by region", y = "Countries count", x = "") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  
+```
+
+# Heatmap of Data
+
+```{r}
+library(ggplot2)
+library(reshape2)
+
+data <- y17_full %>%
+  select(score, gdp, family, life_expectancy, freedom, generosity, corruption, dystopia)
+  
+# Create correlation matrix
+cordata <- round(cor(data),2)
+
+head(cordata)
+
+# reshape the data correlation values in two axis
+melted_cordata <- melt(cordata)
+head(melted_cordata)
+
+ggplot(data = melted_cordata, aes(Var2, Var1, fill = value, label = value))+
+ geom_tile(color = "white") + 
+ scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab", 
+   name="Correlation") +
+  theme_minimal() + 
+  labs(title = "Correlation Matrix of Data", x = "", y = "") +
+ theme(axis.text.x = element_text(angle = 90, vjust = 1, 
+    size = 11, hjust = 1), 
+    axis.text.y = element_text(vjust = 1, 
+    size = 11, hjust = 1))+
+   geom_text(size = 3) +
+   
+ coord_fixed()
+```
+
+# South Asian Countries - Happiness Bar
+
+```{r}
+
+south_asia <- y17_full %>%
+  group_by(region) %>% 
+  select(country, rank, score, gdp, family, life_expectancy, freedom, generosity, corruption, dystopia) %>% 
+  filter(region == "Southern Asia") 
+
+south_asia$country <- factor(south_asia$country, levels = south_asia$country[order(-south_asia$score)])
+
+ggplot(south_asia, aes(x = country, y = rank, fill = country)) +
+  geom_bar(stat = "identity", width = 0.6) +
+  geom_text(aes(label = rank), position = position_stack(vjust = 0.7), size = 3) +
+  labs(title = "World Happiness Rank - South Asian Countries") +
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+ggplot(south_asia, aes(x = country, y = score, fill = country)) +
+  geom_bar(stat = "identity", width = 0.6) +
+  geom_text(aes(label = round(score, 2)), position = position_stack(vjust = 0.7), size = 3.5) +
+  labs(title = "World Happiness Score - South Asian Countries") +
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+ggplot(south_asia, aes(x = country, y = gdp, fill = country)) +
+  geom_bar(stat = "identity", width = 0.6) +
+  geom_text(aes(label = round(gdp, 2)), position = position_stack(vjust = 0.7), size = 3.5) +
+  labs(title = "Economy GDP of South Asian Countries") +
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+ggplot(south_asia, aes(x = country, y = corruption, fill = country)) +
+  geom_bar(stat = "identity", width = 0.6) +
+  geom_text(aes(label = round(corruption, 2)), position = position_stack(vjust = 0.7), size = 3.5) +
+  labs(title = "Corruption Score of South Asian Countries") +
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+
+ggplot(south_asia, aes(x = country, y = life_expectancy, fill = country)) +
+  geom_bar(stat = "identity", width = 0.6) +
+  geom_text(aes(label = round(life_expectancy, 2)), position = position_stack(vjust = 0.7), size = 3.5) +
+  labs(title = "Life Expectancy of South Asian Countries ") +
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+
+```
+
+```{r, fig.width= 9, fig.height=5}
+
+count <- count(y17_full, region)
+
+count <- count %>% 
+  mutate(percent = round(n/sum(n) * 100, 2))
+
+count
+
+ggplot(count, aes(x="", y = percent, fill=region)) + 
+  geom_bar(width = 1, stat = "identity") +
+  labs(title="No. of countries in regional chart", caption= "", y = "" , x = "") +
+  geom_text(aes(label = n), position = position_stack(vjust = 0.5), size = 2.5) +
+  coord_polar(theta="y") +
+  theme_grey()
+```
+
+# Happiness Score vs Region
+
+```{r}
+
+ggplot(y17_full, aes(x = region, y = score, fill = region)) +
+  geom_bar(stat = "identity") +
+   theme_minimal() +
+  theme(axis.text.x=element_blank()) 
+
+```
+
+
+# Economy vs Region
+
+```{r}
+ggplot(y17_full, aes(x = region, y = gdp, fill = region)) +
+  geom_bar(stat = "identity") +
+   theme_minimal() +
+  theme(axis.text.x=element_blank()) 
+```
+
+# Life Expectancy vs Region
+
+```{r}
+
+ggplot(y17_full, aes(x = region, y = life_expectancy, fill = region)) +
+  geom_bar(stat = "identity") +
+   theme_minimal() +
+  theme(axis.text.x=element_blank()) 
+```
+
+# Corruption vs Region
+
+```{r}
+ggplot(y17_full, aes(x = region, y = corruption, fill = region)) +
+  geom_bar(stat = "identity") +
+   theme_minimal() +
+  theme(axis.text.x=element_blank()) 
+```
+
