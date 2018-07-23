@@ -90,8 +90,6 @@ y17_full %>%
   summarise(rank = mean(rank), score = mean(score), gdp = mean(gdp), life_expectancy = mean(life_expectancy), corruption = mean(corruption)) %>% 
   arrange(rank)
 
-y17_full
-
 ```
 
 # Top 50 countries count by region
